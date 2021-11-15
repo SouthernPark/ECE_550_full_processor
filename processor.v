@@ -69,7 +69,14 @@ module processor(
     ctrl_readRegB,                  // O: Register to read from port B of regfile
     data_writeReg,                  // O: Data to write to for regfile
     data_readRegA,                  // I: Data from port A of regfile
-    data_readRegB                   // I: Data from port B of regfile
+    data_readRegB,                   // I: Data from port B of regfile
+	 
+	 //test
+	 s_immediate,
+	 T,
+	 alu_output,
+	 branch,
+	 jump
 	 
 );
     // Control signals
@@ -119,20 +126,126 @@ module processor(
 		//control bits for jr
 		control[5'b00100] = 12'b010xxxxx00xx;
 		//control bits for blt
-		control[5'b00010] = 12'b1000000100xx;
+		control[5'b00110] = 12'b1000000100xx;
 		//controls bits for bex
-		control[5'b10110] = 12'b1000000100xx;
+		control[5'b10110] = 12'b0100000100xx;
 		//controls bits for setx
 		control[5'b10101] = 12'b0010000001x0;
 	 end
 	 
 	 
-	 
+	wire [4:0] opcode;
+	
+	
+	wire [31:0] jump_or_branch;
+	
+	
+	output wire [31:0] jump;
+	output wire [31:0] branch;
+	wire j;
+	wire jal;
+	wire [31:0] alu_or_pc_plus1;
+	wire [31:0] alu_or_pc1_or_setx;
+	wire jr;
+	wire [31:0] pc_plus_one_plus_N;
+	wire bne;
+	wire [31:0] bne_where;
+	wire blt;
+	wire [31:0] blt_where;
+	wire bex;
+	wire setx;
+	wire ALUinB;
+	
 	/*initialise my alu*/
 	wire [31:0] data_operandA, data_operandB;
 	wire [4:0] ctrl_ALUopcode, ctrl_shiftamt;
 	wire [31:0] data_result;
 	wire isNotEqual, isLessThan, overflow;
+	
+	wire [11:0] ctrl;
+	wire Op;
+	wire overf;
+	wire [4:0] overflow_writeReg;
+	output wire [31:0] s_immediate;
+	output wire [31:0] alu_output;
+	wire [31:0] pc, pc_next;
+	output wire [31:0] T;
+	wire [31:0] pc_plus_1;
+	wire [31:0] bex_where;
+	
+	
+	//if br or jr is set, it is jump or branch, else it is pc_plus_1
+	assign pc_next = (ctrl[11] || ctrl[10]) ? jump_or_branch : pc_plus_1;
+	//if ctrl[11] == br is set, then it is branch, else it is branch
+	assign jump_or_branch = ctrl[11] ? branch : jump;
+	
+	//jump
+	
+	//1.j
+	
+	assign j = ~opcode[4] && ~opcode[3] && ~opcode[2] && ~opcode[1] && opcode[0];
+	
+	//2.jal
+	
+	assign jal = ~opcode[4] && ~opcode[3] && ~opcode[2] && opcode[1] && opcode[0];
+	
+	//$r31 = PC + 1
+	assign ctrl_writeReg = jal ? 5'd31 : overflow_writeReg;
+	
+	assign alu_or_pc_plus1 = jal ? pc_plus_1 : alu_output;
+	assign alu_or_pc1_or_setx = setx ? T : alu_or_pc_plus1;
+	//write what to reg: ctrl[0]==1 -> dmem , else alu or pc + 1
+	assign data_writeReg = ctrl[0] ? q_dmem : alu_or_pc1_or_setx;
+	
+	
+	//3.jr
+	assign jr = ~opcode[4] && ~opcode[3] && opcode[2] && ~opcode[1] && ~opcode[0];
+	
+	assign bex =  opcode[4] && ~opcode[3] && opcode[2] && opcode[1] && ~opcode[0];
+	
+	assign bex_where[31:0] = (bex && isNotEqual) ? T : pc_plus_1;
+	
+	//for j and jal and bex, PC = T
+	//for jr, PC = $rd = data_readRegA
+	assign jump = bex ? bex_where:((j || jal ) ? T : data_readRegA);
+	
+	
+	
+	//branch
+	
+	
+	assign pc_plus_one_plus_N = pc_plus_1 + s_immediate;	//pc + 1 + N
+	
+	
+	//1. bne	$rd - $rs
+	
+	assign bne = ~opcode[4] && ~opcode[3] && ~opcode[2] && opcode[1] && ~opcode[0];
+	
+	assign bne_where = isNotEqual ? pc_plus_one_plus_N : pc_plus_1;
+	
+	//2.blt
+	
+	assign blt = ~opcode[4] && ~opcode[3] && opcode[2] && opcode[1] && ~opcode[0];
+	
+	assign blt_where = isLessThan ? pc_plus_one_plus_N : pc_plus_1;
+	
+	//3. bex
+	
+	
+	
+	
+	
+	assign branch = bne ? bne_where : blt_where;
+	//4. setx
+	
+	assign setx =  opcode[4] && ~opcode[3] && opcode[2] && ~opcode[1] && opcode[0];
+	
+	 
+	 
+	 
+	 
+	/*initialise my alu*/
+	
 	alu alu1(data_operandA, 
 				data_operandB, 
 				ctrl_ALUopcode,
@@ -151,14 +264,14 @@ module processor(
 	
 	
 	//first: get the opcode
-	wire [4:0] opcode;
+	
 	assign opcode[4:0] = q_imem[31:27];
 	//second: get the ctrl signal according to the control opcode
-	wire [11:0] ctrl;
+	
 	assign ctrl[11:0] = control[opcode];
 	
 	//Op is 0 if opcode is 00000, else 1
-	wire Op;
+	
 	or or_(Op, opcode[0], opcode[1], opcode[2], opcode[3], opcode[4]);
 	
 	
@@ -170,12 +283,12 @@ module processor(
 	assign ctrl_writeEnable = ctrl[2];
 	//$reg write  [$rd]
 	//when overflow occurs, $rd should be $30
-	wire overf;
+	
 	//when overflow is unknown or overflow is 0, writeReb will be $rd, otherwise
 	//assign ctrl_writeReg[4:0] = (overf == 1'bX || overf == 1'b0) ? q_imem[26:22] : 5'b11110;
 	
-	wire [4:0] overflow_writeReg;
-	assign overflow_writeReg[4:0] = (overf == 1'b0) ? q_imem[26:22] : 5'b11110;
+	
+	assign overflow_writeReg[4:0] = (overf || setx)  ? 5'b11110 : q_imem[26:22];
 	
 	//assign ctrl_writeReg[4:0] = q_imem[26:22];
 	
@@ -217,12 +330,12 @@ module processor(
 	//assign data operand B
 	//we need the sign extension immediate
 	//get the signed_immediate
-	wire [31:0] s_immediate; 
+	 
 	assign s_immediate[16:0] = q_imem[16:0];
 	//sign extended immediate
 	assign s_immediate[31:17] = q_imem[16] ? 15'b111111111111111:15'b000000000000000;
 	//add a mux between the immediate and the data_readRegB
-	wire ALUinB;
+	
 	assign ALUinB = ctrl[9];
 	//For data_operandB, we need a mux to select between immediate and data_readRegB
 	assign data_operandB = ALUinB ? s_immediate : data_readRegB;
@@ -264,7 +377,7 @@ module processor(
 	
 	//alu output
 	//when overflow occurs: alu output should be 1/2/3, else output data result
-	wire [31:0] alu_output;
+	
 	
 	//data_result_flag is 1 when overflow1 = 0, overflow2 = 0 and overflow3 = 0
 	wire data_result_flag, w14;
@@ -323,88 +436,18 @@ module processor(
 	assign wren = ctrl[3];	//assign with DMwe contral signal
 	
 	
-	wire [31:0] pc, pc_next;
-	wire [31:0] T;
+	
 	assign T[26:0] = q_imem[26:0];
 	
 	//add the instruction address (PC)
 	reg_32 pc_fet(pc, pc_next, 1'b1, clock, reset);
 	assign address_imem = pc[11:0];
 	
-	wire [31:0] pc_plus_1;
 	assign pc_plus_1 = pc + 1'b1;
 	
 	
 	
 	
-	
-	
-	//if br or jr is set, it is jump or branch, else it is pc_plus_1
-	wire [31:0] jump_or_branch;
-	assign pc_next = (ctrl[11] || ctrl[10]) ? jump_or_branch : pc_plus_1;
-	
-	wire [31:0] jump, branch;
-	//if ctrl[11] == br is set, then it is branch, else it is branch
-	assign jump_or_branch = ctrl[11] ? branch : jump;
-	
-	//jump
-	
-	//1.j
-	wire j;
-	assign j = ~opcode[4] && ~opcode[3] && ~opcode[2] && ~opcode[1] && opcode[0];
-	
-	//2.jal
-	wire jal;
-	assign jal = ~opcode[4] && ~opcode[3] && ~opcode[2] && opcode[1] && opcode[0];
-	
-	//$r31 = PC + 1
-	assign ctrl_writeReg = jal ? 5'd31 : overflow_writeReg;
-	wire [31:0] alu_or_pc_plus1;
-	assign alu_or_pc_plus1 = jal ? pc_plus_1 : alu_output;
-	wire alu_or_pc1_or_setx = setx ? T : alu_or_pc_plus1;
-	//write what to reg: ctrl[0]==1 -> dmem , else alu or pc + 1
-	assign data_writeReg = ctrl[0] ? q_dmem : alu_or_pc1_or_setx;
-	
-	
-	//3.jr
-	wire jr;
-	assign jr = ~opcode[4] && ~opcode[3] && opcode[2] && ~opcode[1] && ~opcode[0];
-	
-	//for j and jal, PC = T
-	//for jr, PC = $rd = data_readRegA
-	assign jump = (j || jal) ? T : data_readRegA;
-	
-	
-	
-	//branch
-	
-	wire [31:0] pc_plus_one_plus_N;
-	assign pc_plus_one_plus_N = pc_plus_1 + s_immediate;	//pc + 1 + N
-	
-	
-	//1. bne	$rd - $rs
-	wire bne;
-	assign bne = ~opcode[4] && ~opcode[3] && ~opcode[2] && opcode[1] && ~opcode[0];
-	wire [31:0] bne_where;
-	assign bne_where = isNotEqual ? pc_plus_one_plus_N : pc_plus_1;
-	
-	//2.blt
-	wire blt;
-	assign blt = ~opcode[4] && ~opcode[3] && opcode[2] && opcode[1] && ~opcode[0];
-	wire [31:0] blt_where;
-	assign blt_where = isLessThan ? pc_plus_one_plus_N : pc_plus_1;
-	
-	//3. bex
-	
-	wire bex;
-	assign bex =  opcode[4] && ~opcode[3] && opcode[2] && opcode[1] && ~opcode[0];
-	assign bex_where = isNotEqual ? T : pc_plus_1;
-	
-	
-	assign branch = bne ? bne_where : (blt ? blt_where : bex);
-	//4. setx
-	wire setx;
-	assign setx =  opcode[4] && ~opcode[3] && opcode[2] && ~opcode[1] && opcode[0];
 	
 	
 	
