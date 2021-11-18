@@ -4,9 +4,7 @@
 
 module skeleton_test(clock, reset, test, t_ctrl_writeEnable, t_ctrl_writeReg, t_ctrl_readRegA, t_ctrl_readRegB,
 							t_data_writeReg, t_data_readRegA, t_data_readRegB, t_test_out, t_test2_out, t_test3_out, t_test4_out,
-							o_ctrl_writeEnable, o_ctrl_writeReg, o_data_writeReg,
-							//test
-							s_immediate, T, alu_output, q_imem, stu_processor_clock, stu_regfile_clock, r_ctrl_readRegA, r_ctrl_readRegB, r_ctrl_writeReg, branch, jump);
+							o_ctrl_writeEnable, o_ctrl_writeReg, o_data_writeReg);
     input clock, reset, test;
 	 
     /** clock **/
@@ -17,8 +15,8 @@ module skeleton_test(clock, reset, test, t_ctrl_writeEnable, t_ctrl_writeReg, t_
     /** Clock Divider **/
     // frequency_divider_by2 d1( clock , clock_by2 );
     // frequency_divider_by2 d2( clock_by2 , clock_by4 );
-    wire stu_imem_clock,stu_dmem_clock;
-	 output wire stu_processor_clock,stu_regfile_clock;
+    wire stu_imem_clock,stu_dmem_clock,stu_processor_clock,stu_regfile_clock;
+
     assign imem_clock = stu_imem_clock;
     assign dmem_clock = stu_dmem_clock;
     assign processor_clock = stu_processor_clock;
@@ -38,14 +36,7 @@ module skeleton_test(clock, reset, test, t_ctrl_writeEnable, t_ctrl_writeReg, t_
 	output o_ctrl_writeEnable;
 	output [4:0] o_ctrl_writeReg;
 	output [31:0] o_data_writeReg;
-	
-	//test
-	output [31:0] s_immediate;
-	output  [31:0] T;
-	output [31:0] alu_output;
-	output [31:0] branch, jump;
-	
-	
+	 
 	// More wires
 	wire ctrl_writeEnable;
     wire [4:0] ctrl_writeReg, ctrl_readRegA, ctrl_readRegB;
@@ -53,7 +44,7 @@ module skeleton_test(clock, reset, test, t_ctrl_writeEnable, t_ctrl_writeReg, t_
 
     /** IMEM **/
     wire [11:0] address_imem;
-    output wire [31:0] q_imem;
+    wire [31:0] q_imem;
     imem my_imem(
         .address    (address_imem),            // address of data
         .clock      (imem_clock),              // you may need to invert the clock
@@ -75,7 +66,7 @@ module skeleton_test(clock, reset, test, t_ctrl_writeEnable, t_ctrl_writeReg, t_
 
     /** REGFILE **/
     wire r_ctrl_writeEnable, r_reset;
-    output wire [4:0] r_ctrl_writeReg, r_ctrl_readRegA, r_ctrl_readRegB;
+    wire [4:0] r_ctrl_writeReg, r_ctrl_readRegA, r_ctrl_readRegB;
     wire [31:0] r_data_writeReg;
     wire [31:0] r_data_readRegA, r_data_readRegB;
 	 
@@ -122,14 +113,8 @@ module skeleton_test(clock, reset, test, t_ctrl_writeEnable, t_ctrl_writeReg, t_
         ctrl_readRegB,                  // O: Register to read from port B of regfile
         data_writeReg,                  // O: Data to write to for regfile
         r_data_readRegA,                // I: Data from port A of regfile
-        r_data_readRegB,                 // I: Data from port B of regfile
-			//test
-			s_immediate,
-			T,
-			alu_output,
-			branch,
-			jump
-	 );
+        r_data_readRegB                 // I: Data from port B of regfile
+    );
 	 
     assign o_ctrl_writeEnable = ctrl_writeEnable;
     assign o_ctrl_writeReg = ctrl_writeReg;

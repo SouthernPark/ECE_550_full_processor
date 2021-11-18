@@ -69,14 +69,8 @@ module processor(
     ctrl_readRegB,                  // O: Register to read from port B of regfile
     data_writeReg,                  // O: Data to write to for regfile
     data_readRegA,                  // I: Data from port A of regfile
-    data_readRegB,                   // I: Data from port B of regfile
+    data_readRegB                   // I: Data from port B of regfile
 	 
-	 //test
-	 s_immediate,
-	 T,
-	 alu_output,
-	 branch,
-	 jump
 	 
 );
     // Control signals
@@ -140,8 +134,8 @@ module processor(
 	wire [31:0] jump_or_branch;
 	
 	
-	output wire [31:0] jump;
-	output wire [31:0] branch;
+	wire [31:0] jump;
+	wire [31:0] branch;
 	wire j;
 	wire jal;
 	wire [31:0] alu_or_pc_plus1;
@@ -166,13 +160,13 @@ module processor(
 	wire Op;
 	wire overf;
 	wire [4:0] overflow_writeReg;
-	output wire [31:0] s_immediate;
-	output wire [31:0] alu_output;
-	wire [31:0] pc, pc_next;
-	output wire [31:0] T;
+	wire [31:0] s_immediate;
+	wire [31:0] alu_output;
+	wire [31:0] pc_next;
+	wire [31:0] T;
 	wire [31:0] pc_plus_1;
 	wire [31:0] bex_where;
-	
+	wire [31:0] pc;
 	
 	//if br or jr is set, it is jump or branch, else it is pc_plus_1
 	assign pc_next = (ctrl[11] || ctrl[10]) ? jump_or_branch : pc_plus_1;

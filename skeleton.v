@@ -28,6 +28,7 @@ module skeleton(clock, reset, imem_clock, dmem_clock, processor_clock, regfile_c
 	 //80 ns clock
 	 clock_divider_by2 clock_div_4(clk_div2 , reset, clk_div4);
 	 
+	 //we give the imem a high frequency, because 
 	 assign imem_clock = clock;
 	 assign dmem_clock =  clock;
 	 assign regfile_clock = ~clk_div4;
